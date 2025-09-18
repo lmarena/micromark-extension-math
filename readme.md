@@ -1,3 +1,39 @@
+# LMArena's fork of `micromark-extension-math`
+
+We have forked this library to address some shortcomings in its implementation of single dollar sign
+detection for inline math in markdown.
+
+However, due to a [bug](https://github.com/vercel/turborepo/issues/9120) in Turbo
+and [Vercel not letting us use packages that need to install](https://vercel.com/arena-institute/arena-web/5weTmEzrLm92XEZ9xrsYbPBeh6dv#L35)
+for some reason we have chosen to make use of this fork by using `.tgz` files hosted by github in its releases.
+
+We want to keep changes encapsulated in PRs so that we can more easily PR the changes
+into the library's upstream in the future.
+
+To make new changes:
+
+* Create an new branch off of `main`
+* Make changes locally in IDE
+* Open a PR to `main`.
+
+To make a new release:
+
+* Bump the `package.json`'s `version`
+* Commit the change to `main` and push
+* Run `pnpm pack-fork` to generate the `.tgz` file that contains the library
+  * You can find it in `./out`
+* Manually create a new github release using the name of the new version you are releasing
+* Upload the created `.tgz` file as a release asset on the release you created
+
+To make use of a new release in the LMA Monorepo:
+
+* Get a direct link to the `tgz` you added to the github release
+* Update the root [package.json](https://github.com/lmarena/arena-monorepo/blob/main/package.json)'s `pnpm.overrides['micromark-extension-math']` reference to point to the new `tgz`
+* Run `pnpm install`
+* Commit and push changes!
+
+The original README continues below
+
 # micromark-extension-math
 
 [![Build][build-badge]][build]

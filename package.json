@@ -1,6 +1,6 @@
 {
   "name": "micromark-extension-math",
-  "version": "3.1.0",
+  "version": "3.1.0--lmarena-fork-v0.0",
   "description": "micromark extension to support math (`$C_L$`)",
   "license": "MIT",
   "keywords": [
@@ -57,7 +57,8 @@
     "xo": "^0.59.0"
   },
   "scripts": {
-    "prepack": "npm run build && npm run format",
+    "pack-fork": "npm run prepack && mkdir -p ./out && npm pack --pack-destination ./out",
+    "prepack": "npm run build",
     "build": "tsc --build --clean && tsc --build && type-coverage && micromark-build",
     "format": "remark . -qfo && prettier . -w --log-level warn && xo --fix",
     "test-api-prod": "node --conditions production test/index.js",

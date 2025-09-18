@@ -7,3 +7,5 @@ node_modules/
 /index.js
 yarn.lock
 !dev/index.d.ts
+.idea
+/out
