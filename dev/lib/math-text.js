@@ -11,12 +11,15 @@ import {markdownLineEnding} from 'micromark-util-character'
 import {codes, types} from 'micromark-util-symbol'
 
 /**
+ * @param {boolean} isLatexDelimiters
+ *   When true, looks for modern LaTeX delimiters like \( ... \).
+ *   When false, looks for legacy TeX delimiters like $...$
  * @param {Options | null | undefined} [options={}]
  *   Configuration (default: `{}`).
  * @returns {Construct}
  *   Construct.
  */
-export function mathText(options) {
+export function mathText(isLatexDelimiters, options) {
   const options_ = options || {}
   let single = options_.singleDollarTextMath
 
@@ -58,8 +61,14 @@ export function mathText(options) {
      * @type {State}
      */
     function start(code) {
-      assert(code === codes.dollarSign, 'expected `$`')
-      assert(previous.call(self, self.previous), 'expected correct previous')
+      if (isLatexDelimiters) {
+        assert(code === codes.backslash, 'expected `\\`')
+      }
+      else {
+        assert(code === codes.dollarSign, 'expected `$`')
+        assert(previous.call(self, self.previous), 'expected correct previous')
+      }
+
       effects.enter('mathText')
       effects.enter('mathTextSequence')
       return sequenceOpen(code)
@@ -77,15 +86,43 @@ export function mathText(options) {
      */
 
     function sequenceOpen(code) {
-      if (code === codes.dollarSign) {
-        effects.consume(code)
-        sizeOpen++
-        return sequenceOpen
+      if (isLatexDelimiters) {
+        if (sizeOpen === 0) {
+          assert(code === codes.backslash, 'expected `\\`')
+
+          effects.consume(code)
+          sizeOpen++
+          return sequenceOpen
+        }
+        if (sizeOpen === 1) {
+          if (code !== codes.leftParenthesis) {
+            return nok(code)
+          }
+
+          effects.consume(code)
+          sizeOpen++
+          return sequenceOpen
+        }
+      }
+      else {
+        if (code === codes.dollarSign) {
+          effects.consume(code)
+          sizeOpen++
+          return sequenceOpen
+        }
       }
 
       // Not enough markers in the sequence.
-      if (sizeOpen < 2 && !single) {
-        return nok(code)
+      if (sizeOpen < 2) {
+        // LaTeX requires exactly 2 characters: \(
+        if (isLatexDelimiters) {
+          return nok(code)
+        }
+
+        // Math allows $, but only when single is enabled.
+        if (!single) {
+          return nok(code)
+        }
       }
 
       effects.exit('mathTextSequence')
@@ -107,47 +144,58 @@ export function mathText(options) {
         return nok(code)
       }
 
-      if (code === codes.dollarSign) {
-        // This check used to only look for code === codes.dollarSign to know if we might
-        // be closing the sequence. However, we updated this check here to allow formulas
-        // to use the \$ macro for representing dollar signs inside formulas.
-        //
-        // Example: $\$100$
-        //
-        // This is actually a fix we should try to upstream, but until then, we will
-        // keep it in this patch.
-        if (self.previous === codes.backslash) {
-          // Manually consume the dollar sign as when we transition to data(...), if it
-          // encounters a dollar sign it will bail out as it will think it is a token indicating
-          // the completion of the inline-text closure.
-          effects.enter('mathTextData')
-          effects.consume(code)
-          return data
+      // isLatexDelimiters  => allow \$, but detect \(
+      // !isLatexDelimiters => allow \$, and detect $
+      if (isLatexDelimiters) {
+        if (code === codes.backslash) {
+          token = effects.enter('mathTextSequence')
+          size = 0
+          return sequenceClose(code)
         }
+      }
+      else {
+        if (code === codes.dollarSign) {
+          // This check used to only look for code === codes.dollarSign to know if we might
+          // be closing the sequence. However, we updated this check here to allow formulas
+          // to use the \$ macro for representing dollar signs inside formulas.
+          //
+          // Example: $\$100$
+          //
+          // This is actually a fix we should try to upstream, but until then, we will
+          // keep it in this patch.
+          if (self.previous === codes.backslash) {
+            // Manually consume the dollar sign as when we transition to data(...), if it
+            // encounters a dollar sign it will bail out as it will think it is a token indicating
+            // the completion of the inline-text closure.
+            effects.enter('mathTextData')
+            effects.consume(code)
+            return data
+          }
 
-        // If a math text closure is about to be completed we want to make sure that
-        // there isn't a leading space between the '$' as we are using this to help
-        // distinguish between "real inline-math" and "dollar signs used in text".
-        //
-        // For example, with this check, we protect the following:
-        //   A banana is $5 dollars and an apple is $2 dollars.
-        //
-        // For the most part, especially when generated by LLMs, inline text that uses
-        // the legacy TeX approach of using $ as delimiters will never put spaces between
-        // the delimiters and the formula starting.
-        //
-        // Always this: $x + y = z$
-        // Never this:  $ x + y = z $
-        //
-        // So in this way, we can protect natural language usage of the dollar sign
-        // while still allowing inline math formulas
-        if (self.previous === codes.space) {
-          return nok(code)
+          // If a math text closure is about to be completed we want to make sure that
+          // there isn't a leading space between the '$' as we are using this to help
+          // distinguish between "real inline-math" and "dollar signs used in text".
+          //
+          // For example, with this check, we protect the following:
+          //   A banana is $5 dollars and an apple is $2 dollars.
+          //
+          // For the most part, especially when generated by LLMs, inline text that uses
+          // the legacy TeX approach of using $ as delimiters will never put spaces between
+          // the delimiters and the formula starting.
+          //
+          // Always this: $x + y = z$
+          // Never this:  $ x + y = z $
+          //
+          // So in this way, we can protect natural language usage of the dollar sign
+          // while still allowing inline math formulas
+          if (self.previous === codes.space) {
+            return nok(code)
+          }
+
+          token = effects.enter('mathTextSequence')
+          size = 0
+          return sequenceClose(code)
         }
-
-        token = effects.enter('mathTextSequence')
-        size = 0
-        return sequenceClose(code)
       }
 
       // Tabs don’t work, and virtual spaces don’t make sense.
@@ -184,7 +232,7 @@ export function mathText(options) {
       if (
         code === codes.eof ||
         code === codes.space ||
-        code === codes.dollarSign ||
+        (isLatexDelimiters ? code === codes.backslash : code === codes.dollarSign) ||
         markdownLineEnding(code)
       ) {
         effects.exit('mathTextData')
@@ -205,13 +253,34 @@ export function mathText(options) {
      *
      * @type {State}
      */
-
     function sequenceClose(code) {
       // More.
-      if (code === codes.dollarSign) {
-        effects.consume(code)
-        size++
-        return sequenceClose
+      if (isLatexDelimiters) {
+        if (size === 0) {
+          assert(code === codes.backslash, 'expected `\\`')
+
+          effects.consume(code)
+          size++
+          return sequenceClose
+        }
+        if (size === 1) {
+          if (code !== codes.rightParenthesis) {
+            // Not a closing sequence. Treat the captured content as data and go back to data.
+            token.type = 'mathTextData'
+            return data(code)
+          }
+
+          effects.consume(code)
+          size++
+          return sequenceClose
+        }
+      }
+      else {
+        if (code === codes.dollarSign) {
+          effects.consume(code)
+          size++
+          return sequenceClose
+        }
       }
 
       // Done!
