@@ -18,10 +18,11 @@ To make new changes:
 
 To make a new release:
 
+* Create a new branch off of `main` for the new version
 * Bump the `package.json`'s `version`
-* Commit the change to `main` and push
 * Run `pnpm pack-fork` to generate the `.tgz` file that contains the library
   * You can find it in `./out`
+* Open a PR for the `package.json` `version` change. Merge the PR.
 * Manually create a new github release using the name of the new version you are releasing
 * Upload the created `.tgz` file as a release asset on the release you created
 
