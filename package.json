@@ -1,6 +1,6 @@
 {
   "name": "micromark-extension-math",
-  "version": "3.1.0--lmarena-fork-v0.1",
+  "version": "3.1.0--lmarena-fork-v0.2",
   "description": "micromark extension to support math (`$C_L$`)",
   "license": "MIT",
   "keywords": [
