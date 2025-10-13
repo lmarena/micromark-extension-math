@@ -18,7 +18,13 @@ import {mathText} from './math-text.js'
  */
 export function math(options) {
   return {
-    flow: {[codes.dollarSign]: mathFlow},
-    text: {[codes.dollarSign]: mathText(options)}
+    flow: {
+      [codes.dollarSign]: mathFlow(false),
+      [codes.backslash]: mathFlow(true)
+    },
+    text: {
+      [codes.dollarSign]: mathText(false, options),
+      [codes.backslash]: mathText(true, options),
+    }
   }
 }
