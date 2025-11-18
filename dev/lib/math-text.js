@@ -7,7 +7,7 @@
 // This has to be coordinated together with `mdast-util-math`.
 
 import {ok as assert} from 'devlop'
-import {markdownLineEnding} from 'micromark-util-character'
+import {asciiAlphanumeric, markdownLineEnding} from 'micromark-util-character'
 import {codes, types} from 'micromark-util-symbol'
 
 /**
@@ -285,6 +285,16 @@ export function mathText(isLatexDelimiters, options) {
 
       // Done!
       if (size === sizeOpen) {
+        // Check if the character immediately following the closing sequence is alphanumeric.
+        // This helps distinguish between actual math like "$x$" and dollar amounts like "$1-$2" or "$USD".
+        // If a closing $ is followed by an alphanumeric character, it's more likely to be
+        // a dollar amount (e.g., "$10-$20", "$5USD") rather than math.
+        if (!isLatexDelimiters && sizeOpen === 1 && asciiAlphanumeric(code)) {
+          // This looks like a dollar amount, not math. Treat the sequence as data.
+          token.type = 'mathTextData'
+          return data(code)
+        }
+
         effects.exit('mathTextSequence')
         effects.exit('mathText')
         return ok(code)
