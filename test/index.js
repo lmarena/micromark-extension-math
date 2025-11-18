@@ -502,4 +502,73 @@ test('math', async function (t) {
         '</div>\n</blockquote>'
     )
   })
+
+  await t.test(
+    'should not treat dollar-separated price ranges as math',
+    async function () {
+      assert.equal(
+        micromark('This costs $1-$2.', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p>This costs $1-$2.</p>'
+      )
+    }
+  )
+
+  await t.test(
+    'should not treat dollar amounts with hyphens as math',
+    async function () {
+      assert.equal(
+        micromark('Price range: $10-$20 for adults.', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p>Price range: $10-$20 for adults.</p>'
+      )
+    }
+  )
+
+  await t.test(
+    'should not treat dollar amounts with currency codes as math',
+    async function () {
+      assert.equal(
+        micromark('The price is $100USD or $50CAD.', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p>The price is $100USD or $50CAD.</p>'
+      )
+    }
+  )
+
+  await t.test(
+    'should still support math when closing $ is followed by punctuation',
+    async function () {
+      assert.equal(
+        micromark('The formula $x+y$. More text.', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p>The formula <span class="math math-inline">' +
+          renderToString('x+y') +
+          '</span>. More text.</p>'
+      )
+    }
+  )
+
+  await t.test(
+    'should still support math when closing $ is followed by space',
+    async function () {
+      assert.equal(
+        micromark('The formula $x+y$ is simple.', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p>The formula <span class="math math-inline">' +
+          renderToString('x+y') +
+          '</span> is simple.</p>'
+      )
+    }
+  )
 })
