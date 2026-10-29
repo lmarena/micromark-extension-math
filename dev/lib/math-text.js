@@ -10,6 +10,11 @@ import {ok as assert} from 'devlop'
 import {asciiAlphanumeric, markdownLineEnding} from 'micromark-util-character'
 import {codes, types} from 'micromark-util-symbol'
 
+// A single `$` that never closes used to scan to the end of the paragraph,
+// so a text with many `$` (a shell log) took quadratic time.
+// A single-dollar span now fails after this many codes of data.
+const MAX_SINGLE_DOLLAR_SCAN = 1000
+
 /**
  * @param {boolean} isLatexDelimiters
  *   When true, looks for modern LaTeX delimiters like \( ... \).
@@ -41,6 +46,7 @@ export function mathText(isLatexDelimiters, options) {
   function tokenizeMathText(effects, ok, nok) {
     const self = this
     let sizeOpen = 0
+    let scanned = 0
     /** @type {number} */
     let size
     /** @type {Token} */
@@ -237,6 +243,14 @@ export function mathText(isLatexDelimiters, options) {
       ) {
         effects.exit('mathTextData')
         return between(code)
+      }
+
+      if (
+        !isLatexDelimiters &&
+        sizeOpen === 1 &&
+        ++scanned > MAX_SINGLE_DOLLAR_SCAN
+      ) {
+        return nok(code)
       }
 
       effects.consume(code)
