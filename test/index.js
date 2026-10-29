@@ -571,4 +571,61 @@ test('math', async function (t) {
       )
     }
   )
+
+  await t.test(
+    'should parse many unclosed single dollars in linear time',
+    async function () {
+      const input = 'export PATH=$HOME/bin:$PATH\n'.repeat(2000)
+      const start = performance.now()
+      const result = micromark(input, {extensions: [math()]})
+      const elapsed = performance.now() - start
+
+      assert.ok(!result.includes('math-inline'))
+      // The quadratic scan took about 3 s for this input.
+      assert.ok(elapsed < 1000, 'took ' + Math.round(elapsed) + ' ms')
+    }
+  )
+
+  await t.test(
+    'should support single dollar math up to 1000 codes',
+    async function () {
+      const body = 'x'.repeat(1000)
+      assert.equal(
+        micromark('$' + body + '$', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p><span class="math math-inline">' +
+          renderToString(body) +
+          '</span></p>'
+      )
+    }
+  )
+
+  await t.test(
+    'should not support single dollar math over 1000 codes',
+    async function () {
+      const body = 'x'.repeat(1001)
+      assert.equal(
+        micromark('$' + body + '$', {extensions: [math()]}),
+        '<p>$' + body + '$</p>'
+      )
+    }
+  )
+
+  await t.test(
+    'should not limit the length of double dollar math',
+    async function () {
+      const body = 'x'.repeat(1001)
+      assert.equal(
+        micromark('$$' + body + '$$', {
+          extensions: [math()],
+          htmlExtensions: [mathHtml()]
+        }),
+        '<p><span class="math math-inline">' +
+          renderToString(body) +
+          '</span></p>'
+      )
+    }
+  )
 })

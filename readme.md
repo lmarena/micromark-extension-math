@@ -10,6 +10,17 @@ for some reason we have chosen to make use of this fork by using `.tgz` files ho
 We want to keep changes encapsulated in PRs so that we can more easily PR the changes
 into the library's upstream in the future.
 
+### Single-dollar scan limit
+
+A span that starts with one `$` fails after 1,000 codes of data
+(`MAX_SINGLE_DOLLAR_SCAN` in `dev/lib/math-text.js`).
+This fork rejects some closing `$` signs, so an unclosed `$` scanned to the end
+of the paragraph, and a shell log with many `$` signs took quadratic time.
+We chose a length limit only.
+A rule that also stops the span at a line ending was 10x faster on shell logs,
+but it removed multi-line `$…$` math and broke 2 upstream tests.
+`$$…$$` and `\(…\)` have no limit.
+
 To make new changes:
 
 * Create an new branch off of `main`
